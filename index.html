@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>岁岁晚安</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  background:#000;
+  font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+  position:relative;
+}
+.bg{
+  position:absolute;inset:0;
+  background:url("cover.JPG") center/cover no-repeat;
+  opacity:0.25;
+  z-index:-1;
+}
+.title{
+  color:#ff4455;
+  font-size:28px;
+  margin-bottom:24px;
+}
+.lyric-wrap{
+  width:90%;
+  max-width:520px;
+  height:320px;
+  border:2px solid #777777;
+  overflow:hidden;
+  position:relative;
+}
+.lyric-box{
+  transition:transform 0.5s ease;
+  padding:120px 10px;
+}
+.line{
+  text-align:center;
+  font-size:17px;
+  line-height:2.6;
+  color:#aaa;
+}
+.line.active{
+  color:#ff4455;
+  font-size:20px;
+}
+audio{
+  width:90%;
+  max-width:500px;
+  margin-top:20px;
+}
+</style>
+</head>
+<body>
+<div class="bg"></div>
+<div class="title">岁岁晚安</div>
+<div class="lyric-wrap">
+  <div class="lyric-box" id="lyricBox"></div>
+</div>
+<audio id="audio" controls src="./song.m4a">
+
+<script>
+const audio = document.getElementById('audio');
+const lyricBox = document.getElementById('lyricBox');
+let lyricList = [];
+
+// 加载LRC文件
+fetch('./song.lrc')
+.then(res=>res.text())
+.then(lrcText=>{
+  lyricList = parseLrc(lrcText);
+  renderLyric();
+})
+
+// LRC解析函数
+function parseLrc(str){
+  const reg = /\[(\d{2}):(\d{2})\.(\d{2,3})\]/g;
+  let lines = str.split('\n');
+  let arr = [];
+  lines.forEach(row=>{
+    let timeTag = row.match(reg);
+    let txt = row.replace(reg,'').trim();
+    if(!timeTag || !txt) return;
+    timeTag.forEach(t=>{
+      let m = Number(t.slice(1,3));
+      let s = Number(t.slice(4,6));
+      let ms = Number(t.slice(7));
+      let sec = m*60 + s + ms/(ms.length===2?100:1000);
+      arr.push({time:sec,text:txt})
+    })
+  })
+  return arr.sort((a,b)=>a.time-b.time);
+}
+
+function renderLyric(){
+  lyricBox.innerHTML = lyricList.map(item=>`<div class="line">${item.text}</div>`).join('');
+}
+
+audio.addEventListener('timeupdate',()=>{
+  let t = audio.currentTime;
+  let idx = 0;
+  for(let i=0;i<lyricList.length;i++){
+    if(t >= lyricList[i].time) idx = i;
+  }
+  const lineDom = lyricBox.querySelectorAll('.line');
+  lineDom.forEach(d=>d.classList.remove('active'));
+  if(lineDom[idx]) lineDom[idx].classList.add('active');
+  // 滚动限位，底部歌词不会消失
+  const maxOffset = Math.max(0, lyricList.length - 6);
+  const move = Math.min(idx,maxOffset);
+  lyricBox.style.transform = `translateY(${-move*44}px)`;
+})
+</script>
+</body>
+</html>
